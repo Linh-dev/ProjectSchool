@@ -1,13 +1,14 @@
 ﻿namespace ProjectSchool.Models
 {
-    public class DataModel
+    [Serializable]
+    public class DataModel : BaseModelInfo
     {
         public string Name { get; set; }
         public string OtherName { get; set; }
         /// <summary>
         /// tac gia
         /// </summary>
-        public string Author { get; set; }
+        public string AuthorName { get; set; }
         /// <summary>
         /// tinh trang
         /// </summary>
@@ -15,14 +16,16 @@
         /// <summary>
         /// the loai
         /// </summary>
-        public string MovieGenre { get; set; }
+        public List<string> Genres { get; set; }
         /// <summary>
         /// so tap
         /// </summary>
         public int NumberOfEpisodes { get; set; }
-        public string ThumbnailUrl { get; set; }
+        //anh nem
+        public string ThumbnailImageUrl { get; set; }
+        public string ThumbnailBase64Image { get; set; }
         public string Title { get; set; }
         public string Description { get; set; }
-        public List<ChapterModel> chapterModels { get; set; }
+        public List<string> chapterModelIdList { get; set; }
     }
 }
