@@ -1,18 +1,19 @@
 ﻿using Fizzler.Systems.HtmlAgilityPack;
 using HtmlAgilityPack;
 using OpenQA.Selenium.Chrome;
+using ProjectSchool.Dao;
 using ProjectSchool.Extensions;
 using ProjectSchool.Models;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Net;
-using System.Net.WebSockets;
 using System.Text;
 
 namespace ProjectSchool.Business
 {
     public class GetData
     {
+
         public static string NameSpaceNT = "E:\\Images\\net-truyen";
         public static string NameSpaceDTO = "E:\\Images\\doc-truyen-online";
         public static string LinkDTO = "https://doctruyenonline.vn";
@@ -56,57 +57,71 @@ namespace ProjectSchool.Business
         /// </summary>
         /// <param name="uri"></param>
         /// <returns></returns>
-        public DataModel GetDataBookDTO(string uri)
+        public DataModel GetDataBookDTO(string uri, string title)
         {
             var data = new DataModel();
+            //check truyen ton tai
+            var checkdata = DataModelDao.GetInstance().GetByTitle(title);
             var document = CreateDocs(uri);
-            #region header
-            var headerQuery = "body > div > header.pb-5 > div > div";
-            var header = document.DocumentNode.QuerySelectorAll(headerQuery);
             var folerChapterName = "";
             ChromeDriver chromeDriver = new ChromeDriver();
             chromeDriver.Url = uri;
             chromeDriver.Navigate();
-            if (header != null)
+            if (checkdata != null)
             {
-                //header 1: thumnail, name
-                var thumnailQuery = "figure > img";
-                var thumnailElement = header.ElementAt(1).QuerySelectorAll(thumnailQuery).FirstOrDefault();
-                data.Name = thumnailElement.Attributes["alt"].Value;
-                var fileName = data.Name.RemoveSign4VietnameseString().RemoveSpecialCharacters();
-                var imageUrl = thumnailElement.Attributes["src"].Value;
+                data = checkdata;
+            }
+            else
+            {
+                #region header
+                var headerQuery = "body > div > header.pb-5 > div > div";
+                var header = document.DocumentNode.QuerySelectorAll(headerQuery);
 
-                data.ThumbnailBase64Image = SaveImageWithSelenium(imageUrl, fileName, NameSpaceDTO, ref chromeDriver);
-                folerChapterName = NameSpaceDTO + fileName;
-                //header 2: author, genre
-                //1.author
-                var authorQuery = "div > div > a";
-                var authorElement = header.ElementAt(2).QuerySelectorAll(authorQuery).FirstOrDefault();
-                data.AuthorName = authorElement.Attributes["title"].Value;
-                //2. genre
-                var genreQuery = "div > ul > li > a";
-                var genreElement = header.ElementAt(2).QuerySelectorAll(genreQuery);
-                data.Genres = new List<string>();
-                foreach(var item in genreElement)
+                if (header != null)
                 {
-                    var genre = item.Attributes["itemprop"].Value;
-                    data.Genres.Add(genre);
+                    //header 1: thumnail, name
+                    var thumnailQuery = "figure > img";
+                    var thumnailElement = header.ElementAt(1).QuerySelectorAll(thumnailQuery).FirstOrDefault();
+                    data.Name = thumnailElement.Attributes["alt"].Value;
+                    var fileName = data.Name.RemoveSign4VietnameseString().RemoveSpecialCharacters();
+                    var imageUrl = thumnailElement.Attributes["src"].Value;
+
+                    data.ThumbnailImageUrl = SaveImageWithSelenium(imageUrl, fileName, NameSpaceDTO, ref chromeDriver);
+                    folerChapterName = NameSpaceDTO + fileName;
+                    //header 2: author, genre
+                    //1.author
+                    var authorQuery = "div > div > a";
+                    var authorElement = header.ElementAt(2).QuerySelectorAll(authorQuery).FirstOrDefault();
+                    data.AuthorName = authorElement.Attributes["title"].Value;
+                    //2. genre
+                    var genreQuery = "div > ul > li > a";
+                    var genreElement = header.ElementAt(2).QuerySelectorAll(genreQuery);
+                    data.Genres = new List<string>();
+                    foreach (var item in genreElement)
+                    {
+                        var genre = item.Attributes["itemprop"].Value;
+                        data.Genres.Add(genre);
+                    }
                 }
+                #endregion
+
+                DataModelDao.GetInstance().Insert(data);
             }
 
-            #endregion
 
             #region chapter list
             var chapterListQuery = "body > div > div > div > div > ul.relative > li > a";
             var chapterListElement = document.DocumentNode.QuerySelectorAll(chapterListQuery);
-            data.chapterModelIdList = new List<string>();
             foreach(var item in chapterListElement)
             {
                 var currentUri = GetData.LinkDTO + item.Attributes["href"].Value;
                 var chapterName = item.QuerySelectorAll("span").FirstOrDefault().InnerText;
+                var checkChapter = ChapterModelDao.GetInstance().GetByName(chapterName);
+                if (checkChapter != null) continue;
                 var chapter = GetChapterDTO(currentUri, folerChapterName, chapterName, chromeDriver);
                 chapter.Name = chapterName;
-                //data.chapterModels.Add(chapter);
+                chapter.DataId = data._id;
+                ChapterModelDao.GetInstance().Insert(chapter);
             }
             #endregion
             return data;
@@ -115,20 +130,23 @@ namespace ProjectSchool.Business
         public ChapterModel GetChapterDTO(string uri, string folderName, string chapterName, ChromeDriver chromeDriver)
         {
             var data = new ChapterModel();
+            //check chapter ton tai
             var document = CreateDocs(uri);
             var listImageQuery = "body > div > div.bg-black > div.mx-auto > img.mx-auto";
             var listImageElement = document.DocumentNode.QuerySelectorAll(listImageQuery);
             int i = 0;
-            //ChromeOptions option = new ChromeOptions();
-            //option.AddArgument(@"user-data-dir=C:\\Users\\Admin\\AppData\\Local\\Google\\Chrome\\User Data\\Profile 12");
-            //ChromeDriver chromeDriver = new ChromeDriver(option);
             
             chromeDriver.Url = uri;
             chromeDriver.Navigate();
+            if(data.Images == null)
+            {
+                data.Images = new List<string>();
+            }
             foreach (var img in listImageElement)
             {
                 var imageUrl = img.Attributes["src"].Value;
-                var base64Image = SaveImageWithSelenium(imageUrl, i.ToString(), folderName + "\\" + chapterName, ref chromeDriver);
+                var imageFullUrl = SaveImageWithSelenium(imageUrl, i.ToString(), folderName + "\\" + chapterName, ref chromeDriver, false);
+                data.Images.Add(imageFullUrl);
                 i++;
             }
             return data;
@@ -188,13 +206,21 @@ namespace ProjectSchool.Business
         /// <param name="filename"></param>
         /// <param name="nameSpace"></param>
         /// <returns></returns>
-        public string SaveImageWithSelenium(string imageUrl, string filename, string nameSpace, ref ChromeDriver chromeDriver)
+        public string SaveImageWithSelenium(string imageUrl, string filename, string nameSpace, ref ChromeDriver chromeDriver, bool isNormalImg = true)
         {
             //duoi anh
             var imageUrlArr = imageUrl.Split('.');
             var duoi = imageUrlArr[imageUrlArr.Length - 1];
+            var fileUpload = "";
             //folder upload
-            var fileUpload = nameSpace + filename;
+            if (isNormalImg)
+            {
+                fileUpload = Path.Combine(nameSpace , filename);
+            }
+            else
+            {
+                fileUpload = nameSpace;
+            }
             //full url
             filename = filename + "." + duoi;
             var fullUrl = Path.Combine(fileUpload, filename);
@@ -236,7 +262,26 @@ namespace ProjectSchool.Business
                     ") as string;
             chromeDriver.Navigate().Back();
 
-            return base64string;
+            var base64 = base64string.Split(',').Last();
+            using (var stream = new MemoryStream(Convert.FromBase64String(base64)))
+            {
+                using (var bitmap = new Bitmap(stream))
+                {
+                    //check folder exist
+                    if (!Directory.Exists(fileUpload))
+                    {
+                        Directory.CreateDirectory(fileUpload);
+                    }
+                    //checkfile exist
+                    if (File.Exists(fullUrl))
+                    {
+                        File.Delete(fullUrl);
+                    }
+                    bitmap.Save(fullUrl);
+                }
+            }
+
+            return fullUrl;
         }
     }
 }

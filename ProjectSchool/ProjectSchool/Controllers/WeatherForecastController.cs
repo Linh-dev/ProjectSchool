@@ -6,6 +6,7 @@ using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Interactions;
 using ProjectSchool.Business;
+using ProjectSchool.Dao;
 using ProjectSchool.Models;
 using System.Text;
 
@@ -45,21 +46,10 @@ namespace ProjectSchool.Controllers
                 //    data.Add(d);
                 //}
 
-                ChromeOptions options = new ChromeOptions();
-                options.AddArgument(@"user-data-dir=C:\Users\Admin\AppData\Local\Google\Chrome\User Data");
-                //options.AddArgument(@"profile-dir=C:\Users\Admin\AppData\Local\Google\Chrome\User Data");
-                //options.AddArguments("--headless");
-                options.AddArguments("start-maximized"); // open Browser in maximized mode
-                //options.AddArguments("disable-infobars"); // disabling infobars
-                //options.AddArguments("--disable-extensions"); // disabling extensions
-                //options.AddArguments("--disable-gpu"); // applicable to windows os only
-                //options.AddArguments("--disable-dev-shm-usage"); // overcome limited resource problems
-                //options.AddArguments("--no-sandbox"); // Bypass OS security model
-                ChromeDriver chromeDriver = new ChromeDriver(options);
-                //chromeDriver.Navigate();
-                chromeDriver.Url = "https://www.youtube.com/";
-                chromeDriver.Navigate();
-
+                var a = new ChapterModel();
+                a.Name = "chap 1";
+                a.Title = "Title 1";
+                ChapterModelDao.GetInstance().Insert(a);
                 return data;
 
             }
@@ -78,17 +68,23 @@ namespace ProjectSchool.Controllers
                 var document = GetData.GetInstance().CreateDocs(uri);
                 var selectorListItem = "div.bg-contain > div.mx-auto > div.pt-5 > div > div.px-3 > div.grid > div.col-span-1";
                 var threadItems = document.DocumentNode.QuerySelectorAll(selectorListItem).ToList();
-
                 foreach (var item in threadItems)
                 {
                     var linkNode = item.QuerySelector("div > a.relative");
                     var link = GetData.LinkDTO + linkNode.Attributes["href"].Value;
                     var title = linkNode.Attributes["title"].Value;
-                    var d = new DataModel();
-                    d = GetData.GetInstance().GetDataBookDTO(link);
-                    d.Description = link;
-                    d.Title = title;
-                    data.Add(d);
+                    var comicInfo = GetData.GetInstance().GetDataBookDTO(link, title);
+                    comicInfo.Description = link;
+                    comicInfo.Title = title;
+                    if (string.IsNullOrEmpty(comicInfo.IdStr))
+                    {
+                        DataModelDao.GetInstance().Insert(comicInfo);
+                    }
+                    else
+                    {
+                        DataModelDao.GetInstance().Replace(comicInfo);
+                    }
+                    data.Add(comicInfo);
                 }
 
                 return data;

@@ -27,5 +27,6 @@
         public string Title { get; set; }
         public string Description { get; set; }
         public List<string> chapterModelIdList { get; set; }
+        public bool IsDeleted { get; set; }
     }
 }
