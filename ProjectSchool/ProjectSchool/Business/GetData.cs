@@ -14,8 +14,8 @@ namespace ProjectSchool.Business
     public class GetData
     {
 
-        public static string NameSpaceNT = "E:\\Images\\net-truyen";
-        public static string NameSpaceDTO = "E:\\Images\\doc-truyen-online";
+        public static string NameSpaceNT = "D:\\Images\\net-truyen";
+        public static string NameSpaceDTO = "D:\\Images\\doc-truyen-online";
         public static string LinkDTO = "https://doctruyenonline.vn";
         private static GetData _instance;
         public static GetData GetInstance()
@@ -31,9 +31,9 @@ namespace ProjectSchool.Business
         /// </summary>
         /// <param name="uri"></param>
         /// <returns></returns>
-        public DataModel GetDataBookNT(string uri)
+        public ComicInfo GetDataBookNT(string uri)
         {
-            var data = new DataModel();
+            var data = new ComicInfo();
             var document = CreateDocs(uri);
             var nameElement = document.DocumentNode.QuerySelectorAll("#item-detail > h1.title-detail").FirstOrDefault();
             if (nameElement != null)
@@ -57,11 +57,11 @@ namespace ProjectSchool.Business
         /// </summary>
         /// <param name="uri"></param>
         /// <returns></returns>
-        public DataModel GetDataBookDTO(string uri, string title)
+        public ComicInfo GetDataBookDTO(string uri, string title)
         {
-            var data = new DataModel();
+            var data = new ComicInfo();
             //check truyen ton tai
-            var checkdata = DataModelDao.GetInstance().GetByTitle(title);
+            var checkdata = ComicDao.GetInstance().GetByTitle(title);
             var document = CreateDocs(uri);
             var folerChapterName = "";
             ChromeDriver chromeDriver = new ChromeDriver();
@@ -99,13 +99,13 @@ namespace ProjectSchool.Business
                     data.Genres = new List<string>();
                     foreach (var item in genreElement)
                     {
-                        var genre = item.Attributes["itemprop"].Value;
+                        var genre = item.InnerHtml;
                         data.Genres.Add(genre);
                     }
                 }
                 #endregion
 
-                DataModelDao.GetInstance().Insert(data);
+                ComicDao.GetInstance().Insert(data);
             }
 
 
@@ -116,20 +116,20 @@ namespace ProjectSchool.Business
             {
                 var currentUri = GetData.LinkDTO + item.Attributes["href"].Value;
                 var chapterName = item.QuerySelectorAll("span").FirstOrDefault().InnerText;
-                var checkChapter = ChapterModelDao.GetInstance().GetByName(chapterName);
+                var checkChapter = ChapterDao.GetInstance().GetByName(chapterName);
                 if (checkChapter != null) continue;
                 var chapter = GetChapterDTO(currentUri, folerChapterName, chapterName, chromeDriver);
                 chapter.Name = chapterName;
-                chapter.DataId = data._id;
-                ChapterModelDao.GetInstance().Insert(chapter);
+                chapter.ComicId = data._id;
+                ChapterDao.GetInstance().Insert(chapter);
             }
             #endregion
             return data;
         }
 
-        public ChapterModel GetChapterDTO(string uri, string folderName, string chapterName, ChromeDriver chromeDriver)
+        public ChapterInfo GetChapterDTO(string uri, string folderName, string chapterName, ChromeDriver chromeDriver)
         {
-            var data = new ChapterModel();
+            var data = new ChapterInfo();
             //check chapter ton tai
             var document = CreateDocs(uri);
             var listImageQuery = "body > div > div.bg-black > div.mx-auto > img.mx-auto";
@@ -145,7 +145,8 @@ namespace ProjectSchool.Business
             foreach (var img in listImageElement)
             {
                 var imageUrl = img.Attributes["src"].Value;
-                var imageFullUrl = SaveImageWithSelenium(imageUrl, i.ToString(), folderName + "\\" + chapterName, ref chromeDriver, false);
+                var folderUpload = Path.Combine(folderName, chapterName);
+                var imageFullUrl = SaveImageWithSelenium(imageUrl, i.ToString(), folderUpload, ref chromeDriver, false);
                 data.Images.Add(imageFullUrl);
                 i++;
             }
@@ -206,24 +207,24 @@ namespace ProjectSchool.Business
         /// <param name="filename"></param>
         /// <param name="nameSpace"></param>
         /// <returns></returns>
-        public string SaveImageWithSelenium(string imageUrl, string filename, string nameSpace, ref ChromeDriver chromeDriver, bool isNormalImg = true)
+        public string SaveImageWithSelenium(string imageUrl, string filename, string nameSpace, ref ChromeDriver chromeDriver1, bool isNormalImg = true)
         {
             //duoi anh
             var imageUrlArr = imageUrl.Split('.');
             var duoi = imageUrlArr[imageUrlArr.Length - 1];
-            var fileUpload = "";
+            var folderUpload = "";
             //folder upload
             if (isNormalImg)
             {
-                fileUpload = Path.Combine(nameSpace , filename);
+                folderUpload = Path.Combine(nameSpace , filename);
             }
             else
             {
-                fileUpload = nameSpace;
+                folderUpload = nameSpace;
             }
             //full url
             filename = filename + "." + duoi;
-            var fullUrl = Path.Combine(fileUpload, filename);
+            var fullUrl = Path.Combine(folderUpload, filename);
             // get and save
             //WebClient client = new WebClient();
             //Stream stream = client.OpenRead(imageUrl);
@@ -247,6 +248,7 @@ namespace ProjectSchool.Business
             //stream.Close();
             //client.Dispose();
 
+            ChromeDriver chromeDriver = new ChromeDriver();
             chromeDriver.Url = imageUrl;
             chromeDriver.Navigate();
 
@@ -260,7 +262,6 @@ namespace ProjectSchool.Business
                     var base64String = c.toDataURL();
                     return base64String;
                     ") as string;
-            chromeDriver.Navigate().Back();
 
             var base64 = base64string.Split(',').Last();
             using (var stream = new MemoryStream(Convert.FromBase64String(base64)))
@@ -268,9 +269,9 @@ namespace ProjectSchool.Business
                 using (var bitmap = new Bitmap(stream))
                 {
                     //check folder exist
-                    if (!Directory.Exists(fileUpload))
+                    if (!Directory.Exists(folderUpload))
                     {
-                        Directory.CreateDirectory(fileUpload);
+                        Directory.CreateDirectory(folderUpload);
                     }
                     //checkfile exist
                     if (File.Exists(fullUrl))
@@ -280,7 +281,7 @@ namespace ProjectSchool.Business
                     bitmap.Save(fullUrl);
                 }
             }
-
+            chromeDriver.Close();
             return fullUrl;
         }
     }

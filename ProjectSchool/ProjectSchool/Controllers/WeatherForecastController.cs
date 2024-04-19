@@ -25,9 +25,9 @@ namespace ProjectSchool.Controllers
 
         [HttpGet]
         [Route("TestGetNetTruyen")]
-        public IEnumerable<DataModel> Get(string uri)
+        public IEnumerable<ComicInfo> Get(string uri)
         {
-            var data = new List<DataModel>();
+            var data = new List<ComicInfo>();
             try
             {
                 //var document = GetData.GetInstance().CreateDocs(uri);
@@ -46,10 +46,10 @@ namespace ProjectSchool.Controllers
                 //    data.Add(d);
                 //}
 
-                var a = new ChapterModel();
+                var a = new ChapterInfo();
                 a.Name = "chap 1";
                 a.Title = "Title 1";
-                ChapterModelDao.GetInstance().Insert(a);
+                ChapterDao.GetInstance().Insert(a);
                 return data;
 
             }
@@ -59,14 +59,53 @@ namespace ProjectSchool.Controllers
             }
         }
         [HttpGet]
-        [Route("TestGetDocTruyenOnline")]
-        public IEnumerable<DataModel> TestGet(string uri)
+        [Route("GetAllUpdate")]
+        public IEnumerable<ComicInfo> GetAllUpdate(string uri)
         {
-            var data = new List<DataModel>();
+            var data = new List<ComicInfo>();
             try
             {
                 var document = GetData.GetInstance().CreateDocs(uri);
                 var selectorListItem = "div.bg-contain > div.mx-auto > div.pt-5 > div > div.px-3 > div.grid > div.col-span-1";
+                var threadItems = document.DocumentNode.QuerySelectorAll(selectorListItem).ToList();
+                foreach (var item in threadItems)
+                {
+                    var linkNode = item.QuerySelector("div > a.relative");
+                    var link = GetData.LinkDTO + linkNode.Attributes["href"].Value;
+                    var title = linkNode.Attributes["title"].Value;
+
+                    var comicInfo = GetData.GetInstance().GetDataBookDTO(link, title);
+                    comicInfo.Description = link;
+                    comicInfo.Title = title;
+                    if (string.IsNullOrEmpty(comicInfo.IdStr))
+                    {
+                        ComicDao.GetInstance().Insert(comicInfo);
+                    }
+                    else
+                    {
+                        ComicDao.GetInstance().Replace(comicInfo);
+                    }
+                    data.Add(comicInfo);
+                }
+
+                return data;
+
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
+        }
+
+        [HttpGet]
+        [Route("GetAllGenre")]
+        public IEnumerable<ComicInfo> GetAllGenre(string uri)
+        {
+            var data = new List<ComicInfo>();
+            try
+            {
+                var document = GetData.GetInstance().CreateDocs(uri);
+                var selectorListItem = "body > div > div > div > div > div > div.grid > div.col-span-1";
                 var threadItems = document.DocumentNode.QuerySelectorAll(selectorListItem).ToList();
                 foreach (var item in threadItems)
                 {
@@ -78,11 +117,11 @@ namespace ProjectSchool.Controllers
                     comicInfo.Title = title;
                     if (string.IsNullOrEmpty(comicInfo.IdStr))
                     {
-                        DataModelDao.GetInstance().Insert(comicInfo);
+                        ComicDao.GetInstance().Insert(comicInfo);
                     }
                     else
                     {
-                        DataModelDao.GetInstance().Replace(comicInfo);
+                        ComicDao.GetInstance().Replace(comicInfo);
                     }
                     data.Add(comicInfo);
                 }

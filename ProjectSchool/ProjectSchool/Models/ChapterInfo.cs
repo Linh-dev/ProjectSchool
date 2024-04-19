@@ -3,21 +3,22 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace ProjectSchool.Models
 {
-    public class ChapterModel : BaseModelInfo
+    public class ChapterInfo : BaseModelInfo
     {
-        public ObjectId DataId { get; set; }
+        public ObjectId ComicId { get; set; }
+        public string ComicName { get; set; }
         [BsonIgnore]
-        public string DataIdStr
+        public string ComicIdStr
         {
             get
             {
-                return DataId.ToString();
+                return ComicId.ToString();
             }
             set
             {
                 if (!string.IsNullOrEmpty(value))
                 {
-                    DataId = new ObjectId(value);
+                    ComicId = new ObjectId(value);
                 }
             }
         }
@@ -28,6 +29,5 @@ namespace ProjectSchool.Models
         public string Description { get; set; }
         public List<string> Images { get; set; }
         public List<string> Base64Images { get; set; }
-        public bool IsDeleted { get; set; }
     }
 }

@@ -1,7 +1,9 @@
-﻿namespace ProjectSchool.Models
+﻿using MongoDB.Bson;
+
+namespace ProjectSchool.Models
 {
     [Serializable]
-    public class DataModel : BaseModelInfo
+    public class ComicInfo : BaseModelInfo
     {
         public string Name { get; set; }
         public string OtherName { get; set; }
@@ -14,9 +16,13 @@
         /// </summary>
         public string Status { get; set; }
         /// <summary>
-        /// the loai
+        /// the loai - ten
         /// </summary>
         public List<string> Genres { get; set; }
+        /// <summary>
+        /// the loai - id
+        /// </summary>
+        public List<ObjectId> GenreId { get; set; }
         /// <summary>
         /// so tap
         /// </summary>
@@ -26,7 +32,5 @@
         public string ThumbnailBase64Image { get; set; }
         public string Title { get; set; }
         public string Description { get; set; }
-        public List<string> chapterModelIdList { get; set; }
-        public bool IsDeleted { get; set; }
     }
 }
